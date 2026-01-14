@@ -1,0 +1,64 @@
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <div class="header-content">
+            <h1>Welcome, {{ teacher?.nom }}</h1>
+            <p class="subtitle">Manage your classes and attendance</p>
+        </div>
+        <button class="btn-add" (click)="openModal()">+ New Session</button>
+    </header>
+
+    <div class="sessions-grid">
+        <div *ngFor="let session of sessions$ | async" class="session-card"
+            [routerLink]="['/teacher/lecture', session.id]">
+            <div class="card-header">
+                <span class="class-badge">{{ session.classe }}</span>
+                <span class="date">{{ formatDate(session.date) }}</span>
+            </div>
+            <div class="card-body">
+                <h3>{{ session.nom_seance }}</h3>
+                <p>Click to manage attendance</p>
+            </div>
+            <div class="card-footer">
+                <span class="status-indicator">Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Session Modal -->
+    <div class="modal-overlay" *ngIf="showModal">
+        <div class="modal-content">
+            <h2>Create New Session</h2>
+            <div class="form-group">
+                <label>Session Name</label>
+                <input [(ngModel)]="newSession.nom_seance" placeholder="e.g. Mathematics">
+            </div>
+            <div class="form-group">
+                <label>Class</label>
+                <input [(ngModel)]="newSession.classe" placeholder="e.g. 2ING01">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" [(ngModel)]="newSession.date">
+                </div>
+                <div class="form-group">
+                    <label>Time</label>
+                    <input type="time" [(ngModel)]="newSession.time">
+                </div>
+            </div>
+            <div class="message" *ngIf="message">{{ message }}</div>
+            <div class="modal-actions">
+                <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+                <button class="btn-primary" (click)="createSession()">Create</button>
+            </div>
+        </div>
+    </div>
+    <!-- Success Modal -->
+    <div class="modal-overlay success-overlay" *ngIf="showSuccessModal">
+        <div class="modal-content success-content">
+            <div class="success-icon">✓</div>
+            <h2>Success!</h2>
+            <p>Session created successfully.</p>
+        </div>
+    </div>
+</div>

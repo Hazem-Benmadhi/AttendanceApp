@@ -1,0 +1,87 @@
+<div
+    style="background: #f0f0f0; padding: 10px; border-bottom: 1px solid #ccc; font-family: monospace; font-size: 12px;">
+    <strong>DEBUG INFO:</strong><br>
+    Session ID: {{ sessionId }}<br>
+    Session Loaded: {{ !!session }}<br>
+    Session Class: {{ session?.classe }}<br>
+    Loading: {{ loading }}<br>
+    Status: {{ statusMsg }}<br>
+    Error: <span style="color: red">{{ errorMsg }}</span><br>
+    Students Count: {{ students.length }}<br>
+    <details>
+        <summary>Raw Students Data</summary>
+        <pre>{{ students | json }}</pre>
+    </details>
+</div>
+
+<div class="details-container" *ngIf="session">
+    <header class="details-header">
+        <div class="header-left">
+            <a routerLink="/teacher-dashboard" class="back-link">← Back to Dashboard</a>
+            <h1>{{ session.nom_seance }}</h1>
+            <div class="meta">
+                <span class="badge">{{ session.classe }}</span>
+                <span class="date">{{ session.date | date:'medium' }}</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="btn-refresh" (click)="refresh()">↻ Refresh</button>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="label">Total Students</span>
+                    <span class="value">{{ students.length }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="label">Present</span>
+                    <span class="value present">{{ (students | filterPresent).length }}</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="attendance-list">
+        <div class="list-header">
+            <span>Student</span>
+            <span>CIN</span>
+            <span>Status</span>
+            <span>Action</span>
+        </div>
+
+        <div *ngFor="let item of students" class="student-row" [class.present]="item.status === 'present'">
+            <div class="student-info">
+                <div class="avatar">
+                    <img [src]="item.student.image || 'assets/default-avatar.png'"
+                        (error)="item.student.image = 'https://ui-avatars.com/api/?name=' + (item.student.nom || item.student.nom)"
+                        alt="Avatar">
+                </div>
+                <span class="name">{{ item.student.nom || item.student.nom || 'Unknown' }}</span>
+            </div>
+            <div class="cin">{{ item.student.cin || item.student.cin || 'N/A' }}</div>
+            <div class="status">
+                <span class="status-badge" [class.present]="item.status === 'present'">
+                    {{ item.status | titlecase }}
+                </span>
+            </div>
+            <div class="action buttons-row">
+                <button class="btn-action btn-present" [class.active]="item.status === 'present'"
+                    (click)="updateAttendance(item, 'present')">
+                    Present
+                </button>
+                <button class="btn-action btn-absent" [class.active]="item.status === 'absent'"
+                    (click)="updateAttendance(item, 'absent')">
+                    Absent
+                </button>
+            </div>
+        </div>
+
+        <div *ngIf="students.length === 0 && !loading" class="no-students">
+            <p>No students found for this class.</p>
+        </div>
+    </div>
+
+    <div *ngIf="loading" class="loading">Loading...</div>
+</div>
+
+<div *ngIf="!session && !loading" class="error-message">
+    Session not found or failed to load.
+</div>
