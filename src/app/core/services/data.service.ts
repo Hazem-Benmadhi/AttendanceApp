@@ -1,9 +1,14 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 import { Observable, from, of, forkJoin } from 'rxjs';
 import { map, switchMap, tap } from 'rxjs/operators';
 import { Session, Student } from '../models/models';
-import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, updateDoc, addDoc, DocumentReference, DocumentSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs, doc, getDoc, getDocFromServer, updateDoc, addDoc, DocumentReference, DocumentSnapshot, onSnapshot, arrayUnion } from 'firebase/firestore';
 import { app } from '../../firebase.config';
+
+// ... (existing code)
+
+// Get Sessions for Teacher (Real-time)
+
 
 @Injectable({
     providedIn: 'root'
@@ -12,7 +17,7 @@ export class DataService {
     private db = getFirestore(app);
     private currentUser: any = null;
 
-    constructor() { }
+    constructor(private ngZone: NgZone) { }
 
     setCurrentUser(user: any) {
         this.currentUser = user;
@@ -72,13 +77,25 @@ export class DataService {
     }
 
     // Get Sessions for Teacher
+    // ...
+    // Get Sessions for Teacher (Real-time)
     getSessionsForTeacher(teacherId: string): Observable<Session[]> {
         const teacherRef = doc(this.db, 'PROF', teacherId);
         const q = query(collection(this.db, 'Seance'), where('prof', '==', teacherRef));
 
-        return from(getDocs(q)).pipe(
-            map(snapshot => snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Session)))
-        );
+        return new Observable(observer => {
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const sessions = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Session));
+                this.ngZone.run(() => {
+                    observer.next(sessions);
+                });
+            }, (error) => {
+                this.ngZone.run(() => {
+                    observer.error(error);
+                });
+            });
+            return () => unsubscribe();
+        });
     }
 
     // Get Sessions for Student (via Presence) - Legacy/Specific use
@@ -184,6 +201,14 @@ export class DataService {
     addTeacher(teacher: any): Observable<any> {
         const teachersRef = collection(this.db, 'PROF');
         return from(addDoc(teachersRef, teacher));
+    }
+
+    // Add Subject (name only)
+    addSubject(teacherId: string, subjectName: string): Observable<void> {
+        const teacherRef = doc(this.db, 'PROF', teacherId);
+        return from(updateDoc(teacherRef, {
+            subjects: arrayUnion(subjectName)
+        }));
     }
 
     // Add Session
