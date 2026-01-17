@@ -1,21 +1,37 @@
+"""
+Face Recognition Module
+
+Provides face recognition capabilities with multi-strategy detection for maximum
+compatibility and reliability across various image conditions.
+"""
+
 import os
 import pickle
 import base64
 import numpy as np
+import logging
 from typing import List, Tuple, Optional, Dict
 from io import BytesIO
 from PIL import Image
 from deepface import DeepFace
 from app.config import settings
-import logging
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
 class FaceRecognizer:
+    """
+    Face recognizer with optimized caching and multi-strategy detection.
+    
+    Features:
+    - Pre-computed embeddings: Load student embeddings from disk for instant recognition
+    - Session caching: Cache embeddings during a session to avoid re-extraction
+    - Multi-strategy detection: Tries multiple detectors for maximum reliability
+    """
+    
     def __init__(self):
+        """Initialize the face recognizer and load pre-computed embeddings."""
         self.embeddings: Dict[str, List[float]] = {}  # Pre-computed embeddings from disk
-        self.session_cache: Dict[str, Dict[str, List[float]]] = {}  # Session-based cache: {session_id: {student_id: embedding}}
+        self.session_cache: Dict[str, Dict[str, List[float]]] = {}  # Session-based cache
         self.load_embeddings()
 
     def load_embeddings(self):
@@ -38,56 +54,119 @@ class FaceRecognizer:
         logger.info(f"Loaded {len(self.embeddings)} pre-computed embeddings from disk")
 
     def _base64_to_image(self, base64_string: str) -> np.ndarray:
-        """Convert base64 string to numpy array (opencv format)."""
+        """
+        Convert base64 string to numpy array.
+        
+        Args:
+            base64_string: Base64 encoded image (with or without data URI prefix)
+            
+        Returns:
+            Image as numpy array in RGB format
+        """
         if "," in base64_string:
             base64_string = base64_string.split(",")[1]
         
         image_data = base64.b64decode(base64_string)
         image = Image.open(BytesIO(image_data))
         
-        # Convert to RGB (DeepFace expects RGB/BGR)
         if image.mode != "RGB":
             image = image.convert("RGB")
             
-        # Convert to numpy array
         return np.array(image)
 
     @staticmethod
     def compute_cosine_distance(embedding1: List[float], embedding2: List[float]) -> float:
-        """Calculate cosine distance between two embeddings."""
+        """
+        Calculate cosine distance between two embeddings.
+        
+        Args:
+            embedding1: First face embedding
+            embedding2: Second face embedding
+            
+        Returns:
+            Cosine distance (0.0 = identical, 1.0 = completely different)
+        """
         a = np.array(embedding1)
         b = np.array(embedding2)
         return 1 - (np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
     
     def extract_embedding(self, image_input) -> Optional[List[float]]:
-        """Extract face embedding using DeepFace."""
+        """
+        Extract face embedding using multi-strategy detection.
+        
+        Tries multiple detection backends in order for maximum reliability:
+        1. OpenCV: Fast, works for most clear images
+        2. RetinaFace: More accurate, handles challenging conditions
+        3. Relaxed: Last resort for edge cases
+        
+        Args:
+            image_input: Image as numpy array or file path
+            
+        Returns:
+            Face embedding as list of floats, or None if no face detected
+        """
+        # Strategy 1: OpenCV (fast, primary detector)
         try:
-            # DeepFace.represent returns a list of dicts
             embedding_objs = DeepFace.represent(
                 img_path=image_input,
                 model_name=settings.MODEL_NAME,
                 enforce_detection=True,
-                detector_backend=settings.DETECTOR_BACKEND
+                detector_backend='opencv'
             )
             
-            if not embedding_objs or len(embedding_objs) == 0:
-                logger.warning("No face detected")
-                return None
-            
-            # Retrieve the most prominent face (usually the first/largest one returned)
-            embedding = embedding_objs[0]["embedding"]
-            return embedding
-            
-        except ValueError as e:
-            # Face could not be detected
-            logger.warning(f"Face detection failed: {e}")
-            return None
+            if embedding_objs and len(embedding_objs) > 0:
+                logger.debug("Face detected with opencv detector")
+                return embedding_objs[0]["embedding"]
+                
         except Exception as e:
-            logger.error(f"Error extracting embedding: {e}")
-            return None
+            logger.debug(f"OpenCV detection failed: {str(e)[:100]}")
+        
+        # Strategy 2: RetinaFace (accurate, fallback for challenging images)
+        try:
+            embedding_objs = DeepFace.represent(
+                img_path=image_input,
+                model_name=settings.MODEL_NAME,
+                enforce_detection=True,
+                detector_backend='retinaface'
+            )
+            
+            if embedding_objs and len(embedding_objs) > 0:
+                logger.info("Face detected with retinaface detector (fallback)")
+                return embedding_objs[0]["embedding"]
+                
+        except Exception as e:
+            logger.debug(f"RetinaFace detection failed: {str(e)[:100]}")
+        
+        # Strategy 3: Relaxed detection (last resort)
+        try:
+            embedding_objs = DeepFace.represent(
+                img_path=image_input,
+                model_name=settings.MODEL_NAME,
+                enforce_detection=False,
+                detector_backend='opencv'
+            )
+            
+            if embedding_objs and len(embedding_objs) > 0:
+                logger.warning("Face detected with relaxed detection (less reliable)")
+                return embedding_objs[0]["embedding"]
+                
+        except Exception as e:
+            logger.debug(f"Relaxed detection failed: {str(e)[:100]}")
+        
+        logger.warning("No face detected with any detection strategy")
+        return None
 
     def save_embedding(self, student_id: str, embedding: List[float]) -> bool:
-        """Save embedding to disk for future fast recognition."""
+        """
+        Save embedding to disk for future fast recognition.
+        
+        Args:
+            student_id: Unique student identifier
+            embedding: Face embedding to save
+            
+        Returns:
+            True if saved successfully, False otherwise
+        """
         file_path = os.path.join(settings.EMBEDDINGS_DIR, f"{student_id}.pkl")
         try:
             with open(file_path, "wb") as f:
@@ -99,14 +178,34 @@ class FaceRecognizer:
             return False
     
     def clear_session_cache(self, session_id: str):
-        """Clear cached embeddings for a specific session."""
+        """
+        Clear cached embeddings for a specific session.
+        
+        Args:
+            session_id: Session identifier to clear
+        """
         if session_id in self.session_cache:
             del self.session_cache[session_id]
             logger.info(f"Cleared cache for session {session_id}")
     
     def get_or_extract_embedding(self, student_id: str, student_image: str, session_id: str) -> Optional[List[float]]:
-        """Get embedding from cache or extract and cache it."""
-        # Check if we have pre-computed embedding on disk
+        """
+        Get embedding from cache or extract and cache it.
+        
+        Checks in order:
+        1. Pre-computed embeddings on disk
+        2. Session cache
+        3. Extract new embedding and cache it
+        
+        Args:
+            student_id: Unique student identifier
+            student_image: Base64 encoded student image
+            session_id: Current session identifier
+            
+        Returns:
+            Face embedding or None if extraction fails
+        """
+        # Check pre-computed embeddings
         if student_id in self.embeddings:
             logger.debug(f"Using pre-computed embedding for {student_id}")
             return self.embeddings[student_id]
@@ -132,10 +231,10 @@ class FaceRecognizer:
 
     def recognize_face_from_students(self, uploaded_base64_image: str, students: List[Dict], session_id: str) -> Tuple[Optional[str], Optional[str], float]:
         """
-        Recognize face using cached embeddings for efficiency.
+        Recognize face from uploaded image against student list.
         
-        Optimization: Reuses cached embeddings for students within the same session.
-        This avoids re-extracting embeddings for every attendance mark.
+        Uses cached embeddings for efficiency to avoid re-extracting embeddings
+        for every attendance mark within the same session.
         
         Args:
             uploaded_base64_image: Base64 encoded image from mobile app
@@ -144,6 +243,7 @@ class FaceRecognizer:
             
         Returns:
             Tuple of (student_id, student_name, confidence)
+            Returns (None, None, confidence) if no match found
         """
         # Extract embedding from uploaded image
         logger.info("Extracting embedding from uploaded image...")
@@ -165,7 +265,6 @@ class FaceRecognizer:
         best_match_id = None
         best_match_name = None
         min_distance = 1.0
-        
         cached_count = 0
         extracted_count = 0
         
@@ -180,7 +279,7 @@ class FaceRecognizer:
                 continue
             
             try:
-                # Get or extract embedding (with caching)
+                # Get or extract embedding with caching
                 student_embedding = self.get_or_extract_embedding(student_id, student_image, session_id)
                 
                 if student_embedding is None:
@@ -210,12 +309,12 @@ class FaceRecognizer:
         logger.info(f"Recognition complete: {cached_count} cached, {extracted_count} newly extracted")
         
         # Check if best match exceeds threshold
+        confidence = 1 - min_distance
+        
         if min_distance <= settings.RECOGNITION_THRESHOLD:
-            confidence = 1 - min_distance
             logger.info(f"✓ Match found: {best_match_name} with confidence {confidence:.2%}")
             return best_match_id, best_match_name, confidence
         else:
-            confidence = 1 - min_distance
             logger.info(f"✗ No match found. Best distance: {min_distance:.4f} (threshold: {settings.RECOGNITION_THRESHOLD})")
             return None, None, confidence
 

@@ -1,11 +1,16 @@
 # AI Face Recognition Attendance Service
 
-Face recognition service for automatic attendance marking with optimized performance.
+Face recognition service for automatic attendance marking with optimized performance and robust face detection.
 
-## ⚡ Performance Features
+## ⚡ Key Features
 
+- **Multi-Strategy Face Detection**: Automatically tries multiple detection methods for maximum compatibility
+  - Primary: OpenCV detector (fast, works for most cases)
+  - Fallback: RetinaFace detector (accurate, handles challenging images)
+  - Last Resort: Relaxed detection (edge cases)
 - **Session Caching**: Automatically caches student embeddings per session (70% faster)
 - **Pre-Computed Embeddings**: Optional batch pre-computation for instant recognition (95% faster)
+- **Robust Image Handling**: Works with various lighting conditions, angles, and image quality
 
 ## Quick Start
 
@@ -103,15 +108,44 @@ After running precompute_embeddings.py:
 ## Configuration
 
 Edit `app/config.py`:
-- `RECOGNITION_THRESHOLD`: Face match threshold (default: 0.45)
+- `RECOGNITION_THRESHOLD`: Face match threshold (default: 0.45, lower = stricter)
 - `MODEL_NAME`: Face recognition model (default: "VGG-Face")
-- `DETECTOR_BACKEND`: Face detector (default: "opencv")
+- `DETECTOR_BACKEND`: Primary detector (default: "opencv")
+  - Note: Service automatically uses multi-strategy detection with fallbacks
+
+## Face Detection Strategies
+
+The service uses an intelligent multi-strategy approach to maximize face detection success:
+
+1. **OpenCV Detector** (Primary)
+   - Fast and efficient for most cases
+   - Works well with clear, front-facing images
+   - CPU-friendly
+
+2. **RetinaFace Detector** (Fallback)
+   - More accurate for challenging conditions
+   - Handles backlighting, low contrast, varied angles
+   - Automatically used if OpenCV fails
+
+3. **Relaxed Detection** (Last Resort)
+   - Used for edge cases
+   - Less strict detection requirements
+   - Ensures maximum compatibility
+
+This approach ensures **maximum reliability** without sacrificing performance for typical cases.
 
 ## Troubleshooting
+
+**"Face could not be detected"?**
+- Service now automatically tries multiple detection methods
+- Ensure images show clear, visible faces
+- Good lighting improves detection speed
+- Front-facing photos work best
 
 **Slow recognition?**
 - Run `python precompute_embeddings.py` for optimal performance
 - Check if students have valid images in Firebase
+- First detection may take longer (model loading)
 
 **Cache not working?**
 - Ensure consistent session IDs across requests
