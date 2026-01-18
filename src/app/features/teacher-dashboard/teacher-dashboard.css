@@ -186,3 +186,155 @@ input:focus {
     border-radius: 6px;
     cursor: pointer;
 }
+
+/* Tabs Styles */
+.tabs-nav {
+    display: flex;
+    gap: 1rem;
+    margin: 2rem 0;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+}
+
+.tab-item {
+    padding: 0.75rem 1.5rem;
+    background: white;
+    border-radius: 25px;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-item:hover {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.tab-item.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #718096;
+    background: #f7fafc;
+    border-radius: 12px;
+}
+
+/* Add Subject Tab Action */
+.add-subject {
+    background: #f7fafc;
+    border-style: dashed;
+    color: #667eea;
+}
+
+.add-subject:hover {
+    background: #edf2f7;
+    border-color: #667eea;
+}
+
+/* Add Lecture Card */
+.add-card {
+    border: 2px dashed #cbd5e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 150px;
+    background: #f7fafc;
+}
+
+.add-content {
+    text-align: center;
+    color: #718096;
+}
+
+.plus-icon {
+    font-size: 2rem;
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #667eea;
+}
+
+.add-card:hover {
+    border-color: #667eea;
+    background: #edf2f7;
+}
+
+.form-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+    background-color: white;
+}
+
+.hint {
+    display: block;
+    margin-top: 0.25rem;
+    color: #a0aec0;
+    font-size: 0.85rem;
+}
+
+/* Filter Bar */
+.filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    gap: 20px;
+    flex-wrap: wrap;
+    background: white;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.class-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.class-tab {
+    padding: 8px 16px;
+    border: 1px solid #eee;
+    background: transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: #666;
+    transition: all 0.2s ease;
+}
+
+.class-tab:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+.class-tab.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.date-filter input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: inherit;
+    color: #333;
+    outline: none;
+}
+
+.date-filter input:focus {
+    border-color: #667eea;
+}

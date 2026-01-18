@@ -15,7 +15,7 @@ export const routes: Routes = [
             { path: 'teacher-dashboard', component: TeacherDashboard },
             { path: 'teacher/lecture/:id', component: LectureDetails },
             { path: 'student-dashboard', component: StudentDashboard },
-            { path: 'admin', loadComponent: () => import('./features/admin/admin').then(m => m.Admin) },
+
         ]
     }
 ];
