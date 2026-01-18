@@ -81,19 +81,37 @@ class FirebaseService:
     def mark_student_present(self, session_id: str, student_id: str) -> bool:
         """
         Mark a student as present for a session.
-        Updates or creates a Presence record.
+        Creates or updates a Presence (Attendance) record in Firestore.
         """
         try:
+            logger.info(f"Attempting to mark student {student_id} as present for session {session_id}")
+            
             # Get references
             session_ref = self.db.collection('Seance').document(session_id)
             student_ref = self.db.collection('Etudiant').document(student_id)
             
+            # Verify that session and student exist
+            session_doc = session_ref.get()
+            student_doc = student_ref.get()
+            
+            if not session_doc.exists:
+                logger.error(f"Session {session_id} does not exist in Firestore")
+                return False
+            
+            if not student_doc.exists:
+                logger.error(f"Student {student_id} does not exist in Firestore")
+                return False
+            
+            logger.info(f"Session and student verified in Firestore")
+            
             # Check if attendance record already exists
-            presence_ref = self.db.collection('Presence')
-            query = presence_ref.where('Seance_id', '==', session_ref)\
-                               .where('Etudiant_id', '==', student_ref)\
-                               .limit(1)\
-                               .stream()
+            presence_collection = self.db.collection('Presence')
+            
+            # Query for existing attendance record
+            query = presence_collection.where('Seance_id', '==', session_ref)\
+                                      .where('Etudiant_id', '==', student_ref)\
+                                      .limit(1)\
+                                      .stream()
             
             existing_record = None
             for doc in query:
@@ -102,23 +120,27 @@ class FirebaseService:
             
             if existing_record:
                 # Update existing record
+                logger.info(f"Found existing attendance record: {existing_record.id}")
                 existing_record.reference.update({
                     'status': 'present'
                 })
-                logger.info(f"Updated attendance for student {student_id} in session {session_id}")
+                logger.info(f"✓ Updated attendance status to 'present' for student {student_id} in session {session_id}")
             else:
-                # Create new record
-                presence_ref.add({
+                # Create new attendance record
+                logger.info(f"No existing attendance record found, creating new one")
+                new_doc_ref = presence_collection.add({
                     'Seance_id': session_ref,
                     'Etudiant_id': student_ref,
                     'status': 'present'
                 })
-                logger.info(f"Created attendance record for student {student_id} in session {session_id}")
+                logger.info(f"✓ Created new attendance record with ID: {new_doc_ref[1].id} for student {student_id} in session {session_id}")
             
             return True
             
         except Exception as e:
-            logger.error(f"Error marking attendance: {e}")
+            logger.error(f"✗ Error marking attendance: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     def get_session(self, session_id: str) -> Optional[Dict]:
