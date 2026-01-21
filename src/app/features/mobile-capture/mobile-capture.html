@@ -1,0 +1,57 @@
+<div class="capture-container">
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Validating session...</p>
+  </div>
+
+  <div *ngIf="errorMessage" class="error">
+    <p>{{ errorMessage }}</p>
+    <div style="font-size: 10px; color: #aaa; margin: 10px 0;">{{ debugInfo }}</div>
+    
+    <!-- Fallback for insecure origins -->
+    <div *ngIf="isCameraError" style="margin-top: 15px; border-top: 1px solid #444; padding-top: 15px;">
+      <p style="font-size: 14px; margin-bottom: 10px; color: #fff;">Fallback Method:</p>
+      <button class="btn-primary" style="width: 100%;" (click)="openNativeCapture()">Open Native Camera</button>
+      <input #fileInput type="file" accept="image/*" capture="environment" (change)="onFileSelected($event)" style="display: none;" />
+    </div>
+
+    <button *ngIf="!isCameraError" (click)="retry()" class="btn-secondary" style="margin-top: 10px;">Retry</button>
+  </div>
+
+  <div *ngIf="success" class="success">
+    <div class="success-icon">✓</div>
+    <h2>Upload Successful!</h2>
+    <p>You can close this window now.</p>
+  </div>
+
+  <div *ngIf="isValidSession && !success && !errorMessage" class="camera-view">
+    
+    <div class="camera-wrapper" [hidden]="capturedImage">
+      <video #videoElement autoplay playsinline muted></video>
+    </div>
+
+    <div class="preview-wrapper" *ngIf="capturedImage">
+      <img [src]="capturedImage" alt="Captured" />
+    </div>
+
+    <canvas #canvasElement style="display: none;"></canvas>
+
+    <div class="controls">
+      <ng-container *ngIf="!capturedImage; else capturedActions">
+        <button (click)="capturePhoto()" class="btn-capture">
+          <span class="icon">📷</span> Capture
+        </button>
+        <button class="btn-secondary" style="margin-left: 20px;" (click)="openNativeCapture()">Open Native Camera</button>
+      </ng-container>
+      
+      <ng-template #capturedActions>
+      <div class="action-buttons">
+        <button (click)="retake()" class="btn-secondary" [disabled]="uploading">Retake</button>
+        <button (click)="uploadPhoto()" class="btn-primary" [disabled]="uploading">
+          {{ uploading ? 'Uploading...' : 'Use Photo' }}
+        </button>
+      </div>
+      </ng-template>
+    </div>
+  </div>
+</div>

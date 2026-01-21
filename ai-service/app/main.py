@@ -6,6 +6,7 @@ from app.models import (
 )
 from app.face_recognition import FaceRecognizer
 from app.firebase_service import FirebaseService
+from app.capture import router as capture_router
 from app.config import settings
 import logging
 import os
@@ -31,6 +32,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(capture_router, tags=["Capture"])
 
 # Initialize global instances
 recognizer = FaceRecognizer()

@@ -26,6 +26,7 @@
         </div>
         <div class="header-right">
             <button class="btn-refresh" (click)="refresh()">↻ Refresh</button>
+            <button class="btn-refresh" (click)="openMobileCapture()" style="margin-left: 10px; background-color: #4CAF50;">Mobile Capture</button>
             <div class="stats">
                 <div class="stat-item">
                     <span class="label">Total Students</span>
@@ -84,4 +85,32 @@
 
 <div *ngIf="!session && !loading" class="error-message">
     Session not found or failed to load.
+</div>
+
+<div class="modal-overlay" *ngIf="showQrModal">
+    <div class="modal-content">
+        <span class="close-btn" (click)="closeQrModal()">&times;</span>
+        <h2>Mobile Capture Handoff</h2>
+        
+        <p class="status-text">{{ statusMsg }}</p>
+
+        <div *ngIf="!lastCapturedImage" class="qr-state">
+            <p>Scan this code with your phone:</p>
+            <img [src]="qrCodeUrl" *ngIf="qrCodeUrl" alt="QR Code" class="qr-image" />
+            <div *ngIf="!qrCodeUrl && !errorMsg" class="loading-spinner"></div>
+        </div>
+
+        <div *ngIf="lastCapturedImage" class="image-state">
+            <h3>Image Received!</h3>
+            <img [src]="lastCapturedImage" class="captured-preview" />
+            <div class="image-actions">
+                <button class="btn-primary" (click)="closeQrModal()">Done</button>
+            </div>
+        </div>
+        
+        <div *ngIf="errorMsg" class="error-state">
+            <p style="color: red">{{ errorMsg }}</p>
+            <button (click)="openMobileCapture()">Retry</button>
+        </div>
+    </div>
 </div>
