@@ -1,0 +1,53 @@
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <div class="header-content">
+            <h1>Welcome, {{ student?.nom }}</h1>
+            <p class="subtitle">Class: {{ student?.classe }}</p>
+        </div>
+        <div class="header-stats">
+            <div class="stat-pill">
+                <span class="label">Attendance Rate</span>
+                <span class="value">{{ totalSessions > 0 ? ((presentCount / totalSessions) * 100 | number:'1.0-0') : 0
+                    }}%</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <h3>Total Sessions</h3>
+            <div class="number">{{ totalSessions }}</div>
+        </div>
+        <div class="stat-card present">
+            <h3>Present</h3>
+            <div class="number">{{ presentCount }}</div>
+        </div>
+        <div class="stat-card absent">
+            <h3>Absent</h3>
+            <div class="number">{{ absentCount }}</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Attendance History</h2>
+
+    <div class="history-list">
+        <div *ngFor="let session of sessions$ | async" class="history-item"
+            [class.absent-row]="session.attendanceStatus === 'absent'">
+            <div class="session-info">
+                <h3>{{ session.nom_seance }}</h3>
+                <div class="teacher">Prof. {{ session.teacherName }}</div>
+            </div>
+            <div class="session-meta">
+                <div class="date">{{ formatDate(session.date) }}</div>
+                <div class="status-badge" [class.present]="session.attendanceStatus === 'present'"
+                    [class.absent]="session.attendanceStatus === 'absent'">
+                    {{ session.attendanceStatus | titlecase }}
+                </div>
+            </div>
+        </div>
+
+        <div *ngIf="(sessions$ | async)?.length === 0" class="empty-state">
+            <p>No attendance records found.</p>
+        </div>
+    </div>
+</div>

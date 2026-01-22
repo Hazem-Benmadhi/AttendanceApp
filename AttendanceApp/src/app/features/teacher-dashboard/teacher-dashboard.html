@@ -1,0 +1,132 @@
+<header class="dashboard-header">
+    <div class="header-content">
+        <h1>Welcome, {{ teacher?.nom }}</h1>
+        <p class="subtitle">Manage your classes and attendance</p>
+    </div>
+</header>
+
+<!-- Tabs -->
+<div class="tabs-nav">
+    <button *ngFor="let subject of subjects" class="tab-item" [class.active]="selectedSubject === subject"
+        (click)="selectSubject(subject)">
+        {{ subject.name }}
+    </button>
+    <button class="tab-item add-subject" (click)="openModal('session')">
+        + New Subject
+    </button>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="class-tabs">
+        <button *ngFor="let cls of availableClasses" class="class-tab" [class.active]="selectedClass === cls"
+            (click)="selectedClass = cls">
+            {{ cls }}
+        </button>
+    </div>
+    <div class="date-filter">
+        <input type="date" [(ngModel)]="filterDate" placeholder="Filter by Date">
+    </div>
+</div>
+
+<!-- Sessions Grid for Selected Subject -->
+<div class="sessions-grid" *ngIf="selectedSubject">
+    <!-- Add Lecture Card -->
+    <div class="session-card add-card" (click)="openModal('session', selectedSubject.name)">
+        <div class="add-content">
+            <span class="plus-icon">+</span>
+            <h3>Add Lecture</h3>
+            <p>to {{ selectedSubject.name }}</p>
+        </div>
+    </div>
+
+    <div *ngFor="let session of filteredSessions" class="session-card" [routerLink]="['/teacher/lecture', session.id]">
+        <div class="card-header">
+            <span class="class-badge">{{ session.classe }}</span>
+            <span class="date">{{ formatDate(session.date) }}</span>
+        </div>
+        <div class="card-body">
+            <h3>{{ session.nom_seance }}</h3>
+            <p>Click to manage attendance</p>
+        </div>
+    </div>
+</div>
+
+<!-- Empty State -->
+<div class="empty-state" *ngIf="subjects.length === 0">
+    <h3>No subjects found</h3>
+    <p>Start by adding a new specific subject (e.g. Mathematics).</p>
+    <button class="btn-primary mt-4" (click)="openModal('session')">+ Add Subject</button>
+</div>
+
+
+<!-- Dynamic Modal -->
+<div class="modal-overlay" *ngIf="showModal">
+    <div class="modal-content">
+        <h2>{{ newSession.nom_seance ? 'Add Lecture to ' + newSession.nom_seance : 'Create New Subject' }}</h2>
+
+        <!-- Session Form -->
+        <div class="form-group"
+            *ngIf="!newSession.nom_seance || !selectedSubject || newSession.nom_seance !== selectedSubject.name">
+            <label>Subject Name</label>
+            <div class="subject-input-wrapper">
+                <input list="subjectsList" [(ngModel)]="newSession.nom_seance" placeholder="e.g. Mathematics"
+                    class="form-control">
+                <datalist id="subjectsList">
+                    <option *ngFor="let s of subjects" [value]="s.name"></option>
+                </datalist>
+            </div>
+            <small class="hint">Type a new subject name to create it.</small>
+        </div>
+
+        <!-- Only show Class/Date/Time if we are NOT creating a new subject (i.e. we have a selectedSubject OR we are adding to existing) -->
+        <ng-container
+            *ngIf="newSession.nom_seance && selectedSubject && newSession.nom_seance === selectedSubject.name">
+            <div class="form-group">
+                <label>Class</label>
+                <select [(ngModel)]="newSession.classe" class="form-select">
+                    <option value="" disabled selected>Select a class</option>
+                    <option value="2ING01">2ING01</option>
+                    <option value="2ING02">2ING02</option>
+                    <option value="3ING01">3ING01</option>
+                    <option value="3ING02">3ING02</option>
+                </select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" [(ngModel)]="newSession.date">
+                </div>
+                <div class="form-group">
+                    <label>Time</label>
+                    <input type="time" [(ngModel)]="newSession.time">
+                </div>
+            </div>
+        </ng-container>
+
+        <div class="info-box" *ngIf="!selectedSubject || newSession.nom_seance !== selectedSubject.name"
+            style="margin-top: 20px; color: #666; font-size: 0.9em;">
+            <p>Enter the subject name to create a new subject tab.</p>
+        </div>
+
+        <div class="message" *ngIf="message">{{ message }}</div>
+        <div class="modal-actions">
+            <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+            <button class="btn-primary" (click)="createSession()" [disabled]="isSubmitting">
+                {{ isSubmitting ? 'Saving...' : (newSession.nom_seance && selectedSubject && newSession.nom_seance ===
+                selectedSubject.name ? 'Add Lecture' : 'Create Subject') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay success-overlay" *ngIf="showSuccessModal">
+    <div class="modal-content success-content">
+        <div class="success-icon">✓</div>
+        <h2>Success!</h2>
+        <p>Session created successfully.</p>
+        <button class="btn-primary" style="margin-top: 1rem; width: 100%"
+            (click)="closeModal(); showSuccessModal=false">Close</button>
+    </div>
+</div>

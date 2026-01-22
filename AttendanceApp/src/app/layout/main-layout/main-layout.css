@@ -1,0 +1,35 @@
+.app-header {
+    background: white;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2d3748;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.app-header nav a {
+    color: #718096;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.app-header nav a:hover {
+    color: #2d3748;
+}
+
+.app-content {
+    min-height: calc(100vh - 64px);
+    background-color: #f7fafc;
+}
