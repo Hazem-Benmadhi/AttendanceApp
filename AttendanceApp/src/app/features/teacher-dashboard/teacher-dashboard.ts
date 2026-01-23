@@ -27,7 +27,13 @@ export class TeacherDashboard implements OnInit {
   newSession = { nom_seance: '', date: '', time: '', classe: '' };
   message = '';
   isSubmitting = false;
-  modalType: 'session' = 'session';
+  modalType: 'session' | 'student' = 'session';
+
+  // Student registration state
+  showStudentModal = false;
+  newStudent = { cin: '', nom: '', classe: '', image: '' };
+  selectedImageFile: File | null = null;
+  imagePreview: string | null = null;
 
   availableClasses: string[] = ['All'];
   selectedClass = 'All';
@@ -148,7 +154,12 @@ export class TeacherDashboard implements OnInit {
   // ...
 
   // Refactored openModal to remove student type
-  openModal(type: 'session', subjectName?: string) {
+  openModal(type: 'session' | 'student', subjectName?: string) {
+    if (type === 'student') {
+      this.openStudentModal();
+      return;
+    }
+
     this.showModal = true;
     this.modalType = type;
     this.message = '';
@@ -262,5 +273,181 @@ export class TeacherDashboard implements OnInit {
     // Handle Firestore Timestamp
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ========== STUDENT REGISTRATION METHODS ==========
+
+  openStudentModal() {
+    this.showStudentModal = true;
+    this.message = '';
+    this.newStudent = { cin: '', nom: '', classe: '', image: '' };
+    this.selectedImageFile = null;
+    this.imagePreview = null;
+  }
+
+  closeStudentModal() {
+    this.showStudentModal = false;
+    this.newStudent = { cin: '', nom: '', classe: '', image: '' };
+    this.selectedImageFile = null;
+    this.imagePreview = null;
+    this.message = '';
+  }
+
+  onImageSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      this.selectedImageFile = input.files[0];
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.imagePreview = e.target.result;
+        // Trigger change detection since FileReader runs outside Angular's zone
+        this.cdr.detectChanges();
+      };
+      reader.readAsDataURL(this.selectedImageFile);
+    }
+  }
+
+  async compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e: any) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d')!;
+          
+          // Firebase document size limit is 1MB (1048576 bytes)
+          // Base64 encoding increases size by ~33%
+          // We need to account for other fields (cin, nom, classe) ~2KB
+          // Target: base64 image should be < 950KB to keep total document < 1MB
+          const MAX_DOCUMENT_SIZE = 1048576; // 1MB in bytes
+          const OVERHEAD_FOR_FIELDS = 2048; // ~2KB for other document fields
+          const MAX_BASE64_SIZE = MAX_DOCUMENT_SIZE - OVERHEAD_FOR_FIELDS; // ~1046KB
+          
+          let width = img.width;
+          let height = img.height;
+          let quality = 0.9;
+          
+          // First, try with original dimensions and high quality
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img, 0, 0, width, height);
+          let base64 = canvas.toDataURL('image/jpeg', quality);
+          
+          // Calculate base64 size in bytes (base64 string length * 0.75)
+          let base64SizeInBytes = (base64.length - 'data:image/jpeg;base64,'.length) * 0.75;
+          
+          // If the base64 size exceeds our limit, we need to compress
+          if (base64SizeInBytes > MAX_BASE64_SIZE) {
+            // Calculate how much we need to reduce the size
+            const targetRatio = MAX_BASE64_SIZE / base64SizeInBytes;
+            
+            // Reduce dimensions based on target ratio (use sqrt for 2D scaling)
+            const scaleFactor = Math.sqrt(targetRatio * 0.85); // 0.85 for safety margin
+            width = Math.floor(img.width * scaleFactor);
+            height = Math.floor(img.height * scaleFactor);
+            
+            // Also reduce quality
+            quality = Math.max(0.5, 0.75 * targetRatio);
+            
+            // Redraw with new dimensions and quality
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            base64 = canvas.toDataURL('image/jpeg', quality);
+            
+            // Re-check size
+            base64SizeInBytes = (base64.length - 'data:image/jpeg;base64,'.length) * 0.75;
+            
+            // If still too large, do iterative compression
+            let attempts = 0;
+            while (base64SizeInBytes > MAX_BASE64_SIZE && attempts < 5) {
+              quality = Math.max(0.3, quality * 0.8);
+              base64 = canvas.toDataURL('image/jpeg', quality);
+              base64SizeInBytes = (base64.length - 'data:image/jpeg;base64,'.length) * 0.75;
+              attempts++;
+            }
+            
+            if (base64SizeInBytes > MAX_BASE64_SIZE) {
+              reject(new Error('Unable to compress image small enough. Please use a smaller image.'));
+              return;
+            }
+          }
+          
+          resolve(base64);
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target.result;
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async addStudent() {
+    // Validation
+    if (!this.newStudent.cin || !this.newStudent.nom || !this.newStudent.classe) {
+      this.message = 'Please fill in all required fields (CIN, Name, and Class)';
+      return;
+    }
+
+    if (!this.selectedImageFile) {
+      this.message = 'Please select a student image';
+      return;
+    }
+
+    if (this.isSubmitting) return;
+    this.isSubmitting = true;
+    this.message = 'Processing image...';
+    this.cdr.detectChanges(); // Trigger change detection
+
+    try {
+      // Compress image if needed and convert to base64
+      const base64Image = await this.compressImage(this.selectedImageFile);
+      
+      // Remove data URL prefix to store only base64 string
+      const base64Data = base64Image.split(',')[1];
+      
+      const studentData = {
+        cin: this.newStudent.cin.trim(),
+        nom: this.newStudent.nom.trim(),
+        classe: this.newStudent.classe,
+        image: base64Data
+      };
+
+      this.message = 'Saving student...';
+      this.cdr.detectChanges(); // Trigger change detection
+
+      this.dataService.addStudent(studentData).subscribe({
+        next: () => {
+          this.message = 'Student registered successfully!';
+          this.showSuccessModal = true;
+          this.cdr.detectChanges(); // Trigger change detection
+          setTimeout(() => {
+            this.showSuccessModal = false;
+            this.closeStudentModal();
+            this.isSubmitting = false;
+            this.cdr.detectChanges(); // Trigger change detection
+          }, 2000);
+        },
+        error: (err) => {
+          console.error('Error adding student:', err);
+          this.message = 'Error registering student. Please try again.';
+          this.isSubmitting = false;
+          this.cdr.detectChanges(); // Trigger change detection
+        }
+      });
+    } catch (error) {
+      console.error('Error processing image:', error);
+      this.message = 'Error processing image. Please try a different image.';
+      this.isSubmitting = false;
+      this.cdr.detectChanges(); // Trigger change detection
+    }
   }
 }

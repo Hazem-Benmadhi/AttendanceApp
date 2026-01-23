@@ -43,6 +43,18 @@ export class LectureDetails implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) { }
 
+  getImageSrc(base64Image: string | undefined): string {
+    if (!base64Image) {
+      return 'assets/default-avatar.png';
+    }
+    // If already has data URL prefix, return as is
+    if (base64Image.startsWith('data:')) {
+      return base64Image;
+    }
+    // Add data URL prefix for base64 string
+    return `data:image/jpeg;base64,${base64Image}`;
+  }
+
   ngOnInit(): void {
     console.log('LectureDetails initialized');
     this.route.paramMap.subscribe(params => {
